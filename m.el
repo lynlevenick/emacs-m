@@ -3,6 +3,9 @@
 
 ;;; Code:
 
+(eval-when-compile
+  (require 'cl-macs))
+
 (defmacro m--with-symbols (key names &rest body)
   "Bind NAMES to interned symbols then eval BODY.
 
