@@ -13,8 +13,8 @@ Each element within NAMES is a SYMBOL.
 
 Each SYMBOL specifies that the variable named by SYMBOL should
 be bound to a symbol constructed using ‘intern’ and keyed with
-KEY and SYMBOL for uniqueness. Since symbols are interned,
-they are accessible normally. Compare with ‘make-symbol’."
+the value of KEY and each SYMBOL for uniqueness. Since symbols
+are interned they are accessible normally."
   (declare (indent 1))
 
   (let ((key-name (gensym "key-name")))
@@ -70,6 +70,41 @@ function will receive. PROPS has the same meaning as in ‘m-defun’."
                          (setf ,prev-value (progn ,@body))
                        (setf ,prev-args ,current-args)))))))))))
 
+(defun m--hash (func arglist body props)
+  "Transform BODY to memoize previous invocations into a hash.
+
+Return a list (GLOBAL BODY) which specifies global-scoped
+declarations and the transformed body.
+
+FUNC is the name of the function. ARGLIST is the arguments that the
+function will receive. PROPS has the same meaning as in ‘m-defun’."
+
+  ;; TODO: See ‘m--latest’ TODOs
+
+  (m--with-symbols func (prev-calls after-change cached current-args)
+    (let ((def-fn (if (plist-get props :buffer-local) #'defvar-local #'defvar))
+          (arity (length arglist)))
+      (when (= arity 0)
+        (user-error "Memoization into hash by zero arguments"))
+      `(((,def-fn ,prev-calls (make-hash-table :test 'equal :weakness t))
+         ,@(pcase (plist-get props :clear-on)
+             ('nil nil)
+             ('edit
+              `((defun ,after-change (&rest _)
+                  (clrhash ,prev-calls))
+                (add-hook 'after-change-functions #',after-change)))
+             (clear-on (user-error "Unknown clear-on: %s" clear-on))))
+        (,(pcase arity
+            (1 `(let ((,cached (gethash ,@arglist ,prev-calls m--sentinel)))
+                  (if (eq ,cached m--sentinel)
+                      (puthash ,@arglist (progn ,@body) ,prev-calls)
+                    ,cached)))
+            (_ `(let* ((,current-args (list ,@arglist))
+                       (,cached (gethash ,current-args ,prev-calls m--sentinel)))
+                  (if (eq ,cached m--sentinel)
+                      (puthash ,current-args (progn ,@body) ,prev-calls)
+                    ,cached)))))))))
+
 ;;;###autoload
 (defmacro m-defun (name arglist &rest body)
   "Define NAME as a memoized function.
@@ -82,7 +117,8 @@ Optional PROPS are a group of configuration options for the memoization.
 :clear-on      When storage is invalidated.
                May be nil or the symbol ‘edit’. Default is nil.
 :storage       Storage to be used during memoization.
-               May be the symbol ‘latest’. Default is ‘latest’.
+               May be the symbol ‘latest’ or the symbol ‘hash’.
+               Default is ‘latest’.
 
 \(fn NAME ARGLIST &optional DOCSTRING DECL PROPS... &rest BODY)"
   (declare (debug defun) (doc-string 3) (indent 2))
