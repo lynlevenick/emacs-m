@@ -13,21 +13,20 @@ Each element within NAMES is a SYMBOL.
 
 Each SYMBOL specifies that the variable named by SYMBOL should
 be bound to a symbol constructed using ‘intern’ and keyed with
-KEY and SYMBOL for uniqueness.
-
-Ported in part from Alexandria."
+KEY and SYMBOL for uniqueness. Since symbols are interned,
+they are accessible normally. Compare with ‘make-symbol’."
   (declare (indent 1))
 
-  (let ((key-name-sym (gensym "key-name-sym")))
-    `(let ((,key-name-sym (symbol-name ,key)))
+  (let ((key-name (gensym "key-name")))
+    `(let ((,key-name (symbol-name ,key)))
        (let ,(cl-loop for name in names
                       collect `(,name (intern (concat "m--"
-                                                      ,key-name-sym "--"
+                                                      ,key-name "--"
                                                       (symbol-name ',name)))))
          ,@body))))
 
 (defconst m--sentinel (make-symbol "m--sentinel")
-  "Sentinel value for ‘m-memoize’ signaling an uncalled method.")
+  "Sentinel value for ‘m-defun’ signaling an uncalled method.")
 
 (defun m--latest (func arglist body props)
   "Transform BODY to memoize the previous invocation.
@@ -37,6 +36,10 @@ declarations and the transformed body.
 
 FUNC is the name of the function. ARGLIST is the arguments that the
 function will receive. PROPS has the same meaning as in ‘m-defun’."
+
+  ;; TODO: let over defun may work better here when not buffer-local
+  ;; TODO: Abstract over N arguments instead of special casing 0-1-many?
+  ;; TODO: Can any architecture from here be generalized?
 
   (m--with-symbols func (prev-args prev-value after-change current-args)
     (let ((def-fn (if (plist-get props :buffer-local) #'defvar-local #'defvar))
