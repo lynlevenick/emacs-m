@@ -1,10 +1,21 @@
-;;; m --- Memoization wrappers around functions -*- lexical-binding: t -*-
+;;; m.el --- Memoization wrappers around functions -*- lexical-binding: t -*-
+
+;; Author: Lyn Levenick
+;; Package-Requires: ((emacs "26.3"))
+;; Package-Version: 1.1.0
+;; URL: https://github.com/lynlevenick/emacs-m
+
 ;;; Commentary:
+
+;; Provides a macro, ‘m-defun’, which memoizes function
+;; definitions directly. It might be used when one wants to
+;; perform optimizations based on the structure of the
+;; memoized function rather than having one generic solution.
 
 ;;; Code:
 
 (eval-when-compile
-  (require 'cl-macs))
+  (require 'cl-lib))
 
 (defmacro m--with-symbols (key names &rest body)
   "Bind NAMES to interned symbols then eval BODY.
