@@ -38,6 +38,7 @@ FUNC is the name of the function. ARGLIST is the arguments that the
 function will receive. PROPS has the same meaning as in ‘m-defun’."
 
   ;; TODO: let over defun may work better here when not buffer-local
+  ;;       though that would only work if ‘lexical-binding’ is set
   ;; TODO: Abstract over N arguments instead of special casing 0-1-many?
   ;; TODO: Can any architecture from here be generalized?
 
@@ -80,6 +81,7 @@ FUNC is the name of the function. ARGLIST is the arguments that the
 function will receive. PROPS has the same meaning as in ‘m-defun’."
 
   ;; TODO: See ‘m--latest’ TODOs
+  ;; Not a huge fan of the massive amount of repetition here :'(
 
   (m--with-symbols func (prev-calls after-change cached current-args)
     (let ((def-fn (if (plist-get props :buffer-local) #'defvar-local #'defvar))
