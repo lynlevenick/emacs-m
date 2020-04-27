@@ -13,9 +13,10 @@
 ;;; Commentary:
 
 ;; Provides a macro, ‘m-defun’, which memoizes function
-;; definitions directly. It might be used when one wants to
-;; perform optimizations based on the structure of the
-;; memoized function rather than having one generic solution.
+;; definitions directly. By memoizing function bodies
+;; directly, improved byte-compiler output over generic
+;; solutions can be produced in some situations. The type
+;; of memoization and when it is cleared may be configured.
 
 ;;; Code:
 
@@ -135,7 +136,7 @@ Optional PROPS are a group of configuration options for the memoization.
 :clear-on      When storage is invalidated.
                May be nil or the symbol ‘edit’. Default is nil.
 :storage       Storage to be used during memoization.
-               May be the symbol ‘latest’ or the symbol ‘hash’.
+               May be one of the symbols ‘latest’ or ‘hash’.
                Default is ‘latest’.
 
 \(fn NAME ARGLIST &optional DOCSTRING DECL PROPS... &rest BODY)"
@@ -159,7 +160,7 @@ Optional PROPS are a group of configuration options for the memoization.
                  (memo-fn (intern (concat "m--" (symbol-name storage))))
                  (`(,global ,transformed-body)
                   (funcall memo-fn name
-                           (cl-loop for arg in arglist
+                           (cl-loop for arg in arglist ; don't pass keywords
                                     unless (or (eq arg '&optional)
                                                (eq arg '&rest))
                                     collect arg)
