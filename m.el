@@ -34,13 +34,11 @@ the value of KEY and each SYMBOL for uniqueness. Since symbols
 are interned they are accessible normally."
   (declare (indent 1))
 
-  (let ((key-name (gensym "key-name")))
-    `(let ((,key-name (symbol-name ,key)))
-       (let ,(cl-loop for name in names
-                      collect `(,name (intern (concat "m--"
-                                                      ,key-name "--"
-                                                      (symbol-name ',name)))))
-         ,@body))))
+  `(let ,(cl-loop for name in names
+                  collect `(,name (intern (concat "m--"
+                                                  (symbol-name ,key) "--"
+                                                  ,(symbol-name name)))))
+     ,@body))
 
 (defconst m--sentinel (make-symbol "m--sentinel")
   "Sentinel value for ‘m-defun’ signaling an uncalled method.")
