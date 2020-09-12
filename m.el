@@ -57,8 +57,6 @@ function will receive. PROPS has the same meaning as in ‘m-defun’."
   ;; TODO: Abstract over N arguments instead of special casing 0-1-many?
   ;; TODO: Can any architecture from here be generalized?
 
-  (when (> (length body) 1)
-    (setf body `((progn ,@body))))
   (m--with-symbols func (prev-args prev-value after-change current-args)
     (let ((def-fn (if (plist-get props :buffer-local) #'defvar-local #'defvar))
           (arity (length arglist)))
@@ -74,18 +72,18 @@ function will receive. PROPS has the same meaning as in ‘m-defun’."
             (clear-on (user-error "Unknown clear-on: %s" clear-on))))
         (,(pcase arity
            (0 `(if (eq ,prev-value m--sentinel)
-                   (setf ,prev-value ,@body)
+                   (setf ,prev-value ,body)
                  ,prev-value))
            (1 `(if (equal ,prev-args ,@arglist)
                    ,prev-value
                  (prog1
-                     (setf ,prev-value ,@body)
+                     (setf ,prev-value ,body)
                    (setf ,prev-args ,@arglist))))
            (_ `(let ((,current-args (list ,@arglist)))
                    (if (equal ,prev-args ,current-args)
                        ,prev-value
                      (prog1
-                         (setf ,prev-value ,@body)
+                         (setf ,prev-value ,body)
                        (setf ,prev-args ,current-args)))))))))))
 
 (defun m--hash (func arglist body props)
@@ -100,8 +98,6 @@ function will receive. PROPS has the same meaning as in ‘m-defun’."
   ;; TODO: See ‘m--latest’ TODOs
   ;; Not a huge fan of the massive amount of repetition here :'(
 
-  (when (> (length body) 1)
-    (setf body `((progn ,@body))))
   (m--with-symbols func (prev-calls after-change cached current-args)
     (let ((def-fn (if (plist-get props :buffer-local) #'defvar-local #'defvar))
           (arity (length arglist)))
@@ -118,12 +114,12 @@ function will receive. PROPS has the same meaning as in ‘m-defun’."
         (,(pcase arity
             (1 `(let ((,cached (gethash ,@arglist ,prev-calls m--sentinel)))
                   (if (eq ,cached m--sentinel)
-                      (puthash ,@arglist ,@body ,prev-calls)
+                      (puthash ,@arglist ,body ,prev-calls)
                     ,cached)))
             (_ `(let* ((,current-args (list ,@arglist))
                        (,cached (gethash ,current-args ,prev-calls m--sentinel)))
                   (if (eq ,cached m--sentinel)
-                      (puthash ,current-args ,@body ,prev-calls)
+                      (puthash ,current-args ,body ,prev-calls)
                     ,cached)))))))))
 
 ;;;###autoload
@@ -166,7 +162,10 @@ Optional PROPS are a group of configuration options for the memoization.
                                     unless (or (eq arg '&optional)
                                                (eq arg '&rest))
                                     collect arg)
-                           body props)))
+                           (if (> (length body) 1)
+                               `(progn ,@body)
+                             (car body))
+                           props)))
       `(progn
          ,@global
          (defun ,name ,arglist
