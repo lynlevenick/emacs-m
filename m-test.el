@@ -88,6 +88,7 @@
 (defvar m-test-hash-1-value 0)
 (m-defun m-test-hash-1 (_)
   :storage hash
+
   (cl-incf m-test-hash-1-value))
 
 ;; Hash tests assume nothing will cause garbage collection of the
@@ -109,6 +110,7 @@
 (defvar m-test-hash-many-value 0)
 (m-defun m-test-hash-many (_0 _1)
   :storage hash
+
   (cl-incf m-test-hash-many-value))
 
 (ert-deftest m-hash-many ()
