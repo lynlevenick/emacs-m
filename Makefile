@@ -6,14 +6,14 @@
 EMACS = emacs
 LDFLAGS = -L .
 
-PACKAGE = m
+PACKAGE = memo
 VERSION = 1.1.0
 
 # Files
 
 DOC =
-EL = m.el
-TEST = m-test.el
+EL = memo.el
+TEST = memo-test.el
 
 # Targets
 
@@ -36,7 +36,7 @@ $(PACKAGE)-$(VERSION).tar: $(EL) $(DOC)
 
 # Dependencies
 
-m-test.elc: m.elc
+memo-test.elc: memo.elc
 
 # Suffix rules
 

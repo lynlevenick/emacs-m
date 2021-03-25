@@ -1,4 +1,4 @@
-;;; m.el --- Memoization wrappers around functions -*- lexical-binding: t -*-
+;;; memo.el --- Memoization wrappers around functions -*- lexical-binding: t -*-
 
 ;; Author: Lyn Levenick
 ;; Package-Requires: ((emacs "26.3"))
@@ -12,7 +12,7 @@
 
 ;;; Commentary:
 
-;; Provides a macro, ‘m-defun’, which memoizes function
+;; Provides a macro, ‘memo-defun’, which memoizes function
 ;; definitions directly. By memoizing function bodies
 ;; directly, improved byte-compiler output over generic
 ;; solutions can be produced in some situations. The type
@@ -23,35 +23,35 @@
 (eval-when-compile
   (require 'cl-lib))
 
-(defconst m--sentinel (make-symbol "m--sentinel")
-  "Sentinel value for ‘m-defun’ signaling no value present.
+(defconst memo--sentinel (make-symbol "memo--sentinel")
+  "Sentinel value for ‘memo-defun’ signaling no value present.
 
-Not interned; the value bound to ‘m--sentinel’ is tested at
+Not interned; the value bound to ‘memo--sentinel’ is tested at
 call time.")
 
-(defvar m--variables nil
-  "Variables to be bound for current expansion in ‘m-defun’.
+(defvar memo--variables nil
+  "Variables to be bound for current expansion in ‘memo-defun’.
 
 Binding takes place around the entire declaration, used to
 share definitions between expansions.")
 
-(defun m--form-or-progn (forms)
+(defun memo--form-or-progn (forms)
   "Return a length 1 form of FORMS."
 
   (if (> (length forms) 1)
       `(progn ,@forms)
     (car forms)))
 
-(defun m--register-variables (&rest decls)
-  "Register DECLS with ‘m--variables’."
+(defun memo--register-variables (&rest decls)
+  "Register DECLS with ‘memo--variables’."
 
   (cl-loop for decl in decls
-           if (alist-get (car decl) m--variables)
+           if (alist-get (car decl) memo--variables)
            do (user-error "Symbol %s already bound" (car decl))
            else
-           do (push decl m--variables)))
+           do (push decl memo--variables)))
 
-(defmacro m--with-symbols (key names &rest body)
+(defmacro memo--with-symbols (key names &rest body)
   "Bind NAMES to interned symbols then eval BODY.
 
 Each element within NAMES is a SYMBOL.
@@ -64,7 +64,7 @@ code to access them."
   (declare (indent 2))
 
   `(let ,(cl-loop for name in names
-                  collect `(,name (intern (concat "m--"
+                  collect `(,name (intern (concat "memo--"
                                                   (symbol-name ,key) "--"
                                                   ,(symbol-name name)))))
      ,@body))
@@ -72,7 +72,7 @@ code to access them."
 (defmacro memo (&rest _SPECS)
   "Do not evaluate any arguments, and return nil.
 
-If a ‘memo’ form appears before a ‘m-defun’ body, SPECS
+If a ‘memo’ form appears before a ‘memo-defun’ body, SPECS
 specifies memoization configuration for the function,
 modifying the function declaration."
 
@@ -90,26 +90,26 @@ modifying the function declaration."
 
 ;; latest
 
-(defun m--storage-latest (name arglist _props body)
-  "See ‘m--transform-body-list’.
+(defun memo--storage-latest (name arglist _props body)
+  "See ‘memo--transform-body-list’.
 
 NAME, ARGLIST, PROPS, and BODY have the same meaning as in
-‘m--transform-body-list’."
+‘memo--transform-body-list’."
 
-  (m--with-symbols name (prev-args prev-value current-args)
+  (memo--with-symbols name (prev-args prev-value current-args)
     (pcase (length arglist)
-      (0 (m--register-variables `(,prev-value m--sentinel))
-         `((if (eq ,prev-value m--sentinel)
+      (0 (memo--register-variables `(,prev-value memo--sentinel))
+         `((if (eq ,prev-value memo--sentinel)
                (setf ,prev-value ,body)
              ,prev-value)))
-      (1 (m--register-variables `(,prev-args m--sentinel)
+      (1 (memo--register-variables `(,prev-args memo--sentinel)
                                    `(,prev-value nil))
          `((if (equal ,prev-args ,@arglist)
                ,prev-value
              (prog1 ; body may fail, doesn't set prev-args if so
                  (setf ,prev-value ,body)
                (setf ,prev-args ,@arglist)))))
-      (_ (m--register-variables `(,prev-args m--sentinel)
+      (_ (memo--register-variables `(,prev-args memo--sentinel)
                                    `(,prev-value nil))
          `((let ((,current-args (list ,@arglist)))
              (if (equal ,prev-args ,current-args)
@@ -118,54 +118,54 @@ NAME, ARGLIST, PROPS, and BODY have the same meaning as in
                    (setf ,prev-value ,body)
                  (setf ,prev-args ,current-args)))))))))
 
-(defun m--storage-latest-invalidate (name arglist _props)
-  "See ‘m--invalidate-method-list’.
+(defun memo--storage-latest-invalidate (name arglist _props)
+  "See ‘memo--invalidate-method-list’.
 
 NAME, ARGLIST, and PROPS have the same meaning as in
-‘m--invalidate-method-list’."
+‘memo--invalidate-method-list’."
 
-  (m--with-symbols name (prev-args prev-value)
+  (memo--with-symbols name (prev-args prev-value)
     `(setf ,(if (> (length arglist) 0) prev-args prev-value)
-           m--sentinel)))
+           memo--sentinel)))
 
 ;; hash
 
-(defun m--storage-hash (name arglist _props body)
-  "See ‘m--transform-body-list’.
+(defun memo--storage-hash (name arglist _props body)
+  "See ‘memo--transform-body-list’.
 
 NAME, ARGLIST, PROPS, and BODY have the same meaning as in
-‘m--transform-body-list’."
+‘memo--transform-body-list’."
 
-  (m--with-symbols name (prev-calls cached current-args)
-    (m--register-variables
+  (memo--with-symbols name (prev-calls cached current-args)
+    (memo--register-variables
      `(,prev-calls (make-hash-table :test 'equal :weakness t)))
     (pcase (length arglist)
       (0 (user-error "Memoization into hash by zero arguments"))
-      (1 `((let ((,cached (gethash ,@arglist ,prev-calls m--sentinel)))
-             (if (eq ,cached m--sentinel)
+      (1 `((let ((,cached (gethash ,@arglist ,prev-calls memo--sentinel)))
+             (if (eq ,cached memo--sentinel)
                  (puthash ,@arglist ,body ,prev-calls)
                ,cached))))
       (_ `((let* ((,current-args (list ,@arglist))
                   (,cached (gethash ,current-args ,prev-calls
-                                    m--sentinel)))
-             (if (eq ,cached m--sentinel)
+                                    memo--sentinel)))
+             (if (eq ,cached memo--sentinel)
                  (puthash ,current-args ,body ,prev-calls)
                ,cached)))))))
 
-(defun m--storage-hash-invalidate (name _arglist _props)
-  "See ‘m--invalidate-method-list’.
+(defun memo--storage-hash-invalidate (name _arglist _props)
+  "See ‘memo--invalidate-method-list’.
 
 NAME, ARGLIST, and PROPS have the same meaning as in
-‘m--invalidate-method-list’."
+‘memo--invalidate-method-list’."
 
-  (m--with-symbols name (prev-calls)
+  (memo--with-symbols name (prev-calls)
     `(clrhash ,prev-calls)))
 
 ;;; :invalidate-on
 
-(defvar m--invalidate-method-list
-  `((latest . ,#'m--storage-latest-invalidate)
-    (hash . ,#'m--storage-hash-invalidate))
+(defvar memo--invalidate-method-list
+  `((latest . ,#'memo--storage-latest-invalidate)
+    (hash . ,#'memo--storage-hash-invalidate))
   "List associating storage type to function invalidating that storage.
 
 Each element takes the form (STORAGE . FN) where STORAGE is
@@ -176,16 +176,16 @@ invalidating storage for the function NAME.")
 
 ;; edit
 
-(defun m--invalidate-on-edit (name arglist props decl)
-  "See ‘m--transform-decl-list’.
+(defun memo--invalidate-on-edit (name arglist props decl)
+  "See ‘memo--transform-decl-list’.
 
 NAME, ARGLIST, PROPS, and DECL have the same meaning as in
-‘m--transform-decl-list’."
+‘memo--transform-decl-list’."
 
-  (m--with-symbols name (after-change)
+  (memo--with-symbols name (after-change)
     `((defun ,after-change (&rest _)
         ,(let* ((storage (or (plist-get props :storage) 'latest))
-                (invalidation (alist-get storage m--invalidate-method-list)))
+                (invalidation (alist-get storage memo--invalidate-method-list)))
            (if invalidation
                (funcall invalidation name arglist props)
              (user-error "Unknown storage: %s" storage))))
@@ -194,32 +194,32 @@ NAME, ARGLIST, PROPS, and DECL have the same meaning as in
 
 ;;; meta pass - define variables
 
-(defun m--define-variables (_name _arglist props decl)
-  "See ‘m--transform-decl-list’.
+(defun memo--define-variables (_name _arglist props decl)
+  "See ‘memo--transform-decl-list’.
 
 NAME, ARGLIST, PROPS, and DECL have the same meaning as in
-‘m--transform-decl-list’."
+‘memo--transform-decl-list’."
 
   (prog1
       (let ((buffer-local (plist-get props :buffer-local)))
         (if (and lexical-binding (not buffer-local))
             ;; lexical binding and global, can let-over-defun
-            `((let ,m--variables
+            `((let ,memo--variables
                 ,@decl))
           ;; buffer local or dynamic binding, can't let-over-defun
           (let ((defvar-fn (if buffer-local #'defvar-local #'defvar)))
-            `(,@(cl-loop for decl in m--variables
+            `(,@(cl-loop for decl in memo--variables
                          collect `(,defvar-fn ,@decl))
               ,@decl))))
-    (setf m--variables nil)))
+    (setf memo--variables nil)))
 
 ;;; body and decl transformations
 
-(defvar m--transform-body-list
+(defvar memo--transform-body-list
   `((:storage
-     (:default . ,#'m--storage-latest)
-     (latest . ,#'m--storage-latest)
-     (hash . ,#'m--storage-hash)))
+     (:default . ,#'memo--storage-latest)
+     (latest . ,#'memo--storage-latest)
+     (hash . ,#'memo--storage-hash)))
   "List of memoization properties and their expansion.
 
 Each element takes the form (PROP HANDLERS...) where HANDLERS
@@ -233,14 +233,14 @@ Evaluated in order against PROPS.
 
 FN is called as (FN NAME ARGLIST PROPS BODY) and returns a new
 function body. NAME, ARGLIST, PROPS, and BODY have the same
-meaning as in ‘m-defun’.")
+meaning as in ‘memo-defun’.")
 
-(defvar m--transform-decl-list
+(defvar memo--transform-decl-list
   `((:invalidate-on
-     (edit . ,#'m--invalidate-on-edit))
-    (:m--define-variables
-     (:default . ,#'m--define-variables)))
-  "See ‘m--transform-body-list’.
+     (edit . ,#'memo--invalidate-on-edit))
+    (:memo--define-variables
+     (:default . ,#'memo--define-variables)))
+  "See ‘memo--transform-body-list’.
 
 FN is instead called as (FN NAME ARGLIST PROPS DECL) and
 returns a new declaration.")
@@ -253,7 +253,7 @@ returns a new declaration.")
 ;;          outside to inside? lmao
 
 ;;;###autoload
-(defmacro m-defun (name arglist &rest body)
+(defmacro memo-defun (name arglist &rest body)
   "Define NAME as a memoized function.
 
 NAME, ARGLIST, DOCSTRING, DECL, and BODY have the same meaning
@@ -292,21 +292,21 @@ where PROPS is a property list, interpreted as follows:
       (setf props (cdr (pop body))))
 
     ;; Construct body
-    (cl-callf m--form-or-progn body)
-    (cl-loop for (prop . handlers) in m--transform-body-list
+    (cl-callf memo--form-or-progn body)
+    (cl-loop for (prop . handlers) in memo--transform-body-list
              do (when-let ((prop-val (or (plist-get props prop) :default))
                            (handler (alist-get prop-val handlers)))
                   (setf body (funcall handler name narrow-arglist props body))))
 
     ;; Construct decl
     (setf decl `((defun ,name ,arglist ,@body-prefix ,@body)))
-    (cl-loop for (prop . handlers) in m--transform-decl-list
+    (cl-loop for (prop . handlers) in memo--transform-decl-list
              do (when-let ((prop-val (or (plist-get props prop) :default))
                            (handler (alist-get prop-val handlers)))
                   (setf decl (funcall handler name narrow-arglist props decl))))
 
     ;; Return a single form
-    (m--form-or-progn decl)))
+    (memo--form-or-progn decl)))
 
-(provide 'm)
-;;; m.el ends here
+(provide 'memo)
+;;; memo.el ends here

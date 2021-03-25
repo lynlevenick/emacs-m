@@ -1,12 +1,12 @@
-;;; Tests for m.el -*- lexical-binding: t -*-
+;;; Tests for memo.el -*- lexical-binding: t -*-
 ;;; Commentary:
 
 ;;; Code:
 
 (require 'ert)
-(require 'm)
+(require 'memo)
 
-(defmacro m-test-valid (arity &rest keywords)
+(defmacro memo-test-valid (arity &rest keywords)
   "Define a test for a function definition of ARITY with KEYWORDS.
 
 Used to ensure valid runnable code is generated for a given set of keywords."
@@ -28,7 +28,7 @@ Used to ensure valid runnable code is generated for a given set of keywords."
        (declare-function ,fn-name ,buffer-file-name)
        (ert-deftest ,test-name ()
          (defvar ,var-name 0)
-         (m-defun ,fn-name
+         (memo-defun ,fn-name
              ,(cl-loop for i from 1 to arity
                        collect (intern (concat "arg" (number-to-string i))))
            (memo ,@keywords)
@@ -37,84 +37,84 @@ Used to ensure valid runnable code is generated for a given set of keywords."
          (should (= (,fn-name ,@(cl-loop for i from 1 to arity collect i))
                     (,fn-name ,@(cl-loop for i from 1 to arity collect i))))))))
 
-(m-test-valid 0)
-(m-test-valid 1)
-(m-test-valid 2)
-(m-test-valid 0 :invalidate-on edit)
-(m-test-valid 1 :invalidate-on edit)
-(m-test-valid 2 :invalidate-on edit)
-(m-test-valid 0 :buffer-local t)
-(m-test-valid 1 :buffer-local t)
-(m-test-valid 2 :buffer-local t)
-(m-test-valid 0 :invalidate-on edit :buffer-local t)
-(m-test-valid 1 :invalidate-on edit :buffer-local t)
-(m-test-valid 2 :invalidate-on edit :buffer-local t)
-(m-test-valid 1 :storage hash)
-(m-test-valid 2 :storage hash)
-(m-test-valid 1 :storage hash :invalidate-on edit)
-(m-test-valid 2 :storage hash :invalidate-on edit)
-(m-test-valid 1 :storage hash :buffer-local t)
-(m-test-valid 2 :storage hash :buffer-local t)
-(m-test-valid 1 :storage hash :invalidate-on edit :buffer-local t)
-(m-test-valid 2 :storage hash :invalidate-on edit :buffer-local t)
+(memo-test-valid 0)
+(memo-test-valid 1)
+(memo-test-valid 2)
+(memo-test-valid 0 :invalidate-on edit)
+(memo-test-valid 1 :invalidate-on edit)
+(memo-test-valid 2 :invalidate-on edit)
+(memo-test-valid 0 :buffer-local t)
+(memo-test-valid 1 :buffer-local t)
+(memo-test-valid 2 :buffer-local t)
+(memo-test-valid 0 :invalidate-on edit :buffer-local t)
+(memo-test-valid 1 :invalidate-on edit :buffer-local t)
+(memo-test-valid 2 :invalidate-on edit :buffer-local t)
+(memo-test-valid 1 :storage hash)
+(memo-test-valid 2 :storage hash)
+(memo-test-valid 1 :storage hash :invalidate-on edit)
+(memo-test-valid 2 :storage hash :invalidate-on edit)
+(memo-test-valid 1 :storage hash :buffer-local t)
+(memo-test-valid 2 :storage hash :buffer-local t)
+(memo-test-valid 1 :storage hash :invalidate-on edit :buffer-local t)
+(memo-test-valid 2 :storage hash :invalidate-on edit :buffer-local t)
 
 ;; latest; 1 argument
 
-(defvar m-test-latest-1-value 0)
-(m-defun m-test-latest-1 (_)
-  (cl-incf m-test-latest-1-value))
+(defvar memo-test-latest-1-value 0)
+(memo-defun memo-test-latest-1 (_)
+  (cl-incf memo-test-latest-1-value))
 
 (ert-deftest test-latest-1 ()
-  (let* ((result-0 (m-test-latest-1 'a))
-         (result-1 (m-test-latest-1 'a))
-         (result-2 (m-test-latest-1 'b))
-         (result-3 (m-test-latest-1 'b)))
+  (let* ((result-0 (memo-test-latest-1 'a))
+         (result-1 (memo-test-latest-1 'a))
+         (result-2 (memo-test-latest-1 'b))
+         (result-3 (memo-test-latest-1 'b)))
     (should (= result-0 result-1))
     (should (/= result-1 result-2))
     (should (= result-2 result-3))
-    (should (/= result-3 (m-test-latest-1 'a)))))
+    (should (/= result-3 (memo-test-latest-1 'a)))))
 
 ;; latest; 2+ arguments
 
-(defvar m-test-latest-many-value 0)
-(m-defun m-test-latest-many (_0 _1)
-  (cl-incf m-test-latest-many-value))
+(defvar memo-test-latest-many-value 0)
+(memo-defun memo-test-latest-many (_0 _1)
+  (cl-incf memo-test-latest-many-value))
 
 (ert-deftest test-latest-many ()
-  (let* ((result-0 (m-test-latest-many 'a 'b))
-         (result-1 (m-test-latest-many 'a 'b))
-         (result-2 (m-test-latest-many 'c 'b))
-         (result-3 (m-test-latest-many 'c 'b))
-         (result-4 (m-test-latest-many 'c 'd)))
+  (let* ((result-0 (memo-test-latest-many 'a 'b))
+         (result-1 (memo-test-latest-many 'a 'b))
+         (result-2 (memo-test-latest-many 'c 'b))
+         (result-3 (memo-test-latest-many 'c 'b))
+         (result-4 (memo-test-latest-many 'c 'd)))
     (should (= result-0 result-1))
     (should (/= result-1 result-2))
     (should (= result-2 result-3))
     (should (/= result-3 result-4))
-    (should (/= result-4 (m-test-latest-many 'c 'e)))))
+    (should (/= result-4 (memo-test-latest-many 'c 'e)))))
 
 ;; latest; 1 keyword argument
 
-(defvar m-test-latest-keyword-value 0)
-(m-defun m-test-latest-keyword (&optional _0)
-  (cl-incf m-test-latest-keyword-value))
+(defvar memo-test-latest-keyword-value 0)
+(memo-defun memo-test-latest-keyword (&optional _0)
+  (cl-incf memo-test-latest-keyword-value))
 
 (ert-deftest test-latest-keyword ()
-  (let* ((result-0 (m-test-latest-keyword 'a))
-         (result-1 (m-test-latest-keyword 'a))
-         (result-2 (m-test-latest-keyword))
-         (result-3 (m-test-latest-keyword)))
+  (let* ((result-0 (memo-test-latest-keyword 'a))
+         (result-1 (memo-test-latest-keyword 'a))
+         (result-2 (memo-test-latest-keyword))
+         (result-3 (memo-test-latest-keyword)))
     (should (= result-0 result-1))
     (should (/= result-1 result-2))
     (should (= result-2 result-3))
-    (should (/= result-3 (m-test-latest-keyword 'a)))))
+    (should (/= result-3 (memo-test-latest-keyword 'a)))))
 
 ;; latest; 0 arguments; buffer-local
 
-(defvar m-test-latest-buffer-local-value 0)
-(m-defun m-test-latest-buffer-local ()
+(defvar memo-test-latest-buffer-local-value 0)
+(memo-defun memo-test-latest-buffer-local ()
   (memo :buffer-local t)
 
-  (cl-incf m-test-latest-buffer-local-value))
+  (cl-incf memo-test-latest-buffer-local-value))
 
 (ert-deftest test-latest-buffer-local ()
   (let* ((result-0 nil)
@@ -123,22 +123,22 @@ Used to ensure valid runnable code is generated for a given set of keywords."
          (result-3 nil)
          (result-4 nil))
     (with-temp-buffer
-      (setf result-0 (m-test-latest-buffer-local)
-            result-1 (m-test-latest-buffer-local)))
+      (setf result-0 (memo-test-latest-buffer-local)
+            result-1 (memo-test-latest-buffer-local)))
     (with-temp-buffer
-      (setf result-2 (m-test-latest-buffer-local)
-            result-3 (m-test-latest-buffer-local)))
+      (setf result-2 (memo-test-latest-buffer-local)
+            result-3 (memo-test-latest-buffer-local)))
     (should (= result-0 result-1))
     (should (/= result-1 result-2))
     (should (= result-2 result-3))))
 
 ;; latest; 0 arguments; on edit
 
-(defvar m-test-latest-invalidate-value 0)
-(m-defun m-test-latest-invalidate ()
+(defvar memo-test-latest-invalidate-value 0)
+(memo-defun memo-test-latest-invalidate ()
   (memo :invalidate-on edit)
 
-  (cl-incf m-test-latest-invalidate-value))
+  (cl-incf memo-test-latest-invalidate-value))
 
 (ert-deftest test-latest-invalidate ()
   (let* ((result-0 nil)
@@ -146,11 +146,11 @@ Used to ensure valid runnable code is generated for a given set of keywords."
          (result-2 nil)
          (result-3 nil))
     (with-temp-buffer
-      (setf result-0 (m-test-latest-invalidate)
-            result-1 (m-test-latest-invalidate))
+      (setf result-0 (memo-test-latest-invalidate)
+            result-1 (memo-test-latest-invalidate))
       (insert "characters")
-      (setf result-2 (m-test-latest-invalidate)
-            result-3 (m-test-latest-invalidate)))
+      (setf result-2 (memo-test-latest-invalidate)
+            result-3 (memo-test-latest-invalidate)))
     (should (= result-0 result-1))
     (should (/= result-1 result-2))
     (should (= result-2 result-3))))
@@ -159,28 +159,28 @@ Used to ensure valid runnable code is generated for a given set of keywords."
 
 (ert-deftest test-hash-0 ()
   (should-error
-   (m-defun m-test-hash-0 ()
+   (memo-defun memo-test-hash-0 ()
      (memo :storage hash)
 
      0)))
 
 ;; hash; 1 argument
 
-(defvar m-test-hash-1-value 0)
-(m-defun m-test-hash-1 (_)
+(defvar memo-test-hash-1-value 0)
+(memo-defun memo-test-hash-1 (_)
   (memo :storage hash)
 
-  (cl-incf m-test-hash-1-value))
+  (cl-incf memo-test-hash-1-value))
 
 ;; Hash tests assume nothing will cause garbage collection of the
 ;; keys or values during execution because hash storage is weak
 ;; TODO: let-bind GC variables to enforce that?
 (ert-deftest test-hash-1 ()
-  (let* ((result-0 (m-test-hash-1 'a))
-         (result-1 (m-test-hash-1 'a))
-         (result-2 (m-test-hash-1 'b))
-         (result-3 (m-test-hash-1 'b))
-         (result-4 (m-test-hash-1 'a)))
+  (let* ((result-0 (memo-test-hash-1 'a))
+         (result-1 (memo-test-hash-1 'a))
+         (result-2 (memo-test-hash-1 'b))
+         (result-3 (memo-test-hash-1 'b))
+         (result-4 (memo-test-hash-1 'a)))
     (should (= result-0 result-1))
     (should (/= result-1 result-2))
     (should (= result-2 result-3))
@@ -189,21 +189,21 @@ Used to ensure valid runnable code is generated for a given set of keywords."
 
 ;; hash; 2+ arguments
 
-(defvar m-test-hash-many-value 0)
-(m-defun m-test-hash-many (_0 _1)
+(defvar memo-test-hash-many-value 0)
+(memo-defun memo-test-hash-many (_0 _1)
   (memo :storage hash)
 
-  (cl-incf m-test-hash-many-value))
+  (cl-incf memo-test-hash-many-value))
 
 (ert-deftest test-hash-many ()
-  (setf m-test-hash-many-value 0)
-  (let* ((result-0 (m-test-hash-many 'a 'b))
-         (result-1 (m-test-hash-many 'a 'b))
-         (result-2 (m-test-hash-many 'c 'b))
-         (result-3 (m-test-hash-many 'c 'b))
-         (result-4 (m-test-hash-many 'c 'd))
-         (result-5 (m-test-hash-many 'c 'b))
-         (result-6 (m-test-hash-many 'a 'b)))
+  (setf memo-test-hash-many-value 0)
+  (let* ((result-0 (memo-test-hash-many 'a 'b))
+         (result-1 (memo-test-hash-many 'a 'b))
+         (result-2 (memo-test-hash-many 'c 'b))
+         (result-3 (memo-test-hash-many 'c 'b))
+         (result-4 (memo-test-hash-many 'c 'd))
+         (result-5 (memo-test-hash-many 'c 'b))
+         (result-6 (memo-test-hash-many 'a 'b)))
     (should (= result-0 result-1))
     (should (/= result-1 result-2))
     (should (= result-2 result-3))
@@ -214,11 +214,11 @@ Used to ensure valid runnable code is generated for a given set of keywords."
 
 ;; ensure documentation is preserved
 
-(m-defun m-test-docs ()
+(memo-defun memo-test-docs ()
   "Return zero."
   (memo :storage latest)
 
   0)
 
 (ert-deftest test-docs ()
-  (should (string-equal "Return zero." (documentation #'m-test-docs))))
+  (should (string-equal "Return zero." (documentation #'memo-test-docs))))
